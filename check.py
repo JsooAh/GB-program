@@ -9,6 +9,8 @@ host="218.232.234.232"  #건교부 테스트 사이트
 cse={'name':'cse-gnrb-mon'}
 updir = "conf"
 
+state_text = ""
+
 def sensor_type(aename):
     return aename[0:2]
 
@@ -56,6 +58,7 @@ def actuate_reqstate(aename):
     #print(url, json.dumps(r.json()))
 
 def AE_check(GBcode):
+    global state_text
     ERROR_text = ""
     print("다음 GB code에 대한 AE를 체크 중... :", GBcode)
     conf_dir = F"./{updir}/{GBcode}/conf.py"
@@ -79,9 +82,10 @@ def AE_check(GBcode):
     state_dict = actuate_state_check(aename)
     if state_dict == "NONE": # 1관문 : AE가 존재하는가?
         ERROR_text = F"{GBcode} : AE가 존재하지 않습니다.\n"
-
+        state_text += F"{GBcode} :: state가 존재하지 않음\n"
     else:
         state_time = state_dict["time"]
+        state_text += F"{GBcode} :: battery = {state_dict['battery']}, solarchargevolt = {state_dict['solarchargevolt']}\n"
         if (datetime.now() - datetime.strptime(state_time, "%Y-%m-%d %H:%M:%S")).total_seconds() >= 7200: # 2관문 : 가장 최근에 state를 갱신한 것이 2시간 이내인가?
             ERROR_text = F"{GBcode} : state cin이 오랫동안 갱신되지 않았습니다. {state_time} :: battery = {state_dict['battery']}, solarchargevolt = {state_dict['solarchargevolt']}\n"
         else:
@@ -118,9 +122,16 @@ print("검사 종료")
 
 if len(text_file) == 0:
     print("에러 AE 없음!")
+    print("state 정보를 작성합니다...")
+    with open(F"{datetime.now().strftime('%Y%m%d%H%M')}_AEcheck.txt", 'a', encoding='UTF8') as f:
+        f.write("GBcode별 배터리/전압 정보\n") # 모든 AE에 문제가 없는 경우, state 정보만을 담은 파일 생성
+        f.write(state_text)
 
 else:
     print("에러 AE에 대한 정보를 작성합니다...")
     print(text_file)
     with open(F"{datetime.now().strftime('%Y%m%d%H%M')}_AEcheck.txt", 'a', encoding='UTF8') as f:
         f.write(text_file) # 패치에 실패한 파일 리스트를 작성
+        f.write("-----------------\n")
+        f.write("GBcode별 배터리/전압 정보\n")
+        f.write(state_text)
