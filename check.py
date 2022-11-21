@@ -72,22 +72,24 @@ def AE_check(GBcode):
         for l in lines:
             if "bridge=" in l.replace(" ", ""):
                 bridge_num = l.split('"')[1]
+            elif "install=" in l.replace(" ", ""):
+                bridge_name = l.split(",")[1].replace(" ", "").split("'")[3]
             elif "make_ae(" in l:
                 #print(l)
                 aename = l.split("'")[1].replace("{bridge}", bridge_num)
                 break #aename을 확정했다면 break
 
-    print(aename)
+    #print(aename)
 
     state_dict = actuate_state_check(aename)
     if state_dict == "NONE": # 1관문 : AE가 존재하는가?
-        ERROR_text = F"{GBcode} : AE가 존재하지 않습니다.\n"
+        ERROR_text = F"{bridge_name}({GBcode}) - {aename} : AE가 존재하지 않습니다.\n"
         state_text += F"{GBcode} :: state가 존재하지 않음\n"
     else:
         state_time = state_dict["time"]
         state_text += F"{GBcode} :: battery = {state_dict['battery']}, solarchargevolt = {state_dict['solarchargevolt']}\n"
         if (datetime.now() - datetime.strptime(state_time, "%Y-%m-%d %H:%M:%S")).total_seconds() >= 7200: # 2관문 : 가장 최근에 state를 갱신한 것이 2시간 이내인가?
-            ERROR_text = F"{GBcode} : state cin이 오랫동안 갱신되지 않았습니다. {state_time} :: battery = {state_dict['battery']}, solarchargevolt = {state_dict['solarchargevolt']}\n"
+            ERROR_text = F"{bridge_name}({GBcode}) - {aename} : state cin이 오랫동안 갱신되지 않았습니다. {state_time} :: battery = {state_dict['battery']}, solarchargevolt = {state_dict['solarchargevolt']}\n"
         else:
             actuate_reqstate(aename)
             sleep(2)
@@ -95,10 +97,10 @@ def AE_check(GBcode):
             state_time_after = state_dict_after["time"]
 
             if state_time == state_time_after:# 3관문 : mqtt가 살아있는가?
-                ERROR_text = F"{GBcode} : mqtt 명령어가 작동하지 않습니다.\n"
+                ERROR_text = F"{bridge_name}({GBcode}) - {aename} : mqtt 명령어가 작동하지 않습니다.\n"
 
     if len(ERROR_text) == 0:
-        print(F"{GBcode} : 테스트 통과!")
+        print(F"{bridge_name}({GBcode}) - {aename} : 테스트 통과!")
     else:
         print(ERROR_text)
     print("-----------------")
