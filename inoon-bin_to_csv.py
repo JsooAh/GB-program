@@ -6,6 +6,7 @@
 # 220714 업데이트 : bridge number가 8자리 숫자일 때만 정상작동하던 현상을 수정하였습니다.
 # 220726 업데이트 : AC, DS의 경우, 데이터의 시간을 밀리세컨드까지 표기하도록 수정하였습니다. 다만 csv 파일에서 시간 셀 서식을 바꾸어야 시간이 제대로 보입니다.
 # 220802 업데이트 : 그래프를 포함하는 엑셀 파일을 저장하는 기능을 추가하였습니다. 0802기준 아직 테스트 필요.
+# 230105 업데이트 : bin file이 json형식을 온전히 갖추지 못했을 때 예외처리가 제대로 되지 않는 현상 발견, 보완
 
 import pandas as pd
 import openpyxl
@@ -39,12 +40,12 @@ def bin_to_csv(filename, mode):
     #print(filename)
     try:
         raw_json = json.loads(f.read().decode('utf_8'))
-    except requests.JSONDecodeError as msg:
+    except json.JSONDecodeError as msg:
         print(F"ERROR : json decode has failed.\n please check the file.")
-        sys.exit(0)
+        return "Fail"
     except FileNotFoundError as msg:
         print(F"ERROR : there is no file.\n")
-        sys.exit(0)
+        return "Fail"
 # file close    
 
     # 센서 종류와 관계없이 data가 list이므로 
@@ -58,7 +59,7 @@ def bin_to_csv(filename, mode):
     measure_gap = end_time - start_time 
     measure_time = measure_gap.seconds+1 #통상의 경우 600초
     time_count = 0 # time index 기록용 count
-    index_list = list(range(1, raw_json["count"]+1))
+    index_list = list(range(1, len(raw_json["data"])+1))
 
     if type_name == "AC" or type_name == "DS": # 1초에 여러 개의 데이터가 들어오는 센서의 경우 
         samplerate = raw_json["count"]//measure_time
@@ -174,7 +175,11 @@ while True:
             print(F"convert No.{i+1} file : {file_list[i]}")
             print("converting...")
             name = bin_to_csv(file_list[i], mode)
-            print(F"csv file name : {name}")
+            if name == "Fail":
+                print(F"Failed to open file : {name}")
+                print("pass the file...")
+            else:
+                print(F"{mode} file name : {name}")
 
         print("converting completed")
         input("press enter to exit...\n")
@@ -226,6 +231,9 @@ while True:
 
 print("converting...")
 file_name = bin_to_csv(file_list[input_number-1], mode)
+if file_name == "Fail":
+    print(F"Failed to open file : {file_name}")
+    sys.exit(0)
 print(F"{mode} file name : ", file_name)
 input("press any key to exit...\n")
 
